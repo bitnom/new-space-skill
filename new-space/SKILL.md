@@ -202,13 +202,28 @@ once its lane is a named pi agent:
 |---|---|
 | Lane exists and is named | `herdr agent get <pane>` → `name` is the tab label |
 | Rooms registration | `rooms_who` — **a footer name is not registration** |
-| Role contract reached the model | grep the lane's **own transcript** for the role file's first sentence. The footer still reads `profile: leader` when the composition was dropped |
+| Role contract reached the model | read the session's system record → its **`sections`** object (`preamble`, `addendum`, `project_context`, `skills`, `cwd`) for the role file's first sentence, or check the recorded digest. **Never grep the session file for the sentence** — see below |
 | Mode composed cleanly | footer `mode:<key>` with **no** `!`; `pi-modes state <session> --json` → `verdict: match` |
 | Beads join | `bd dolt show` reports Database `swarm` / Host `127.0.0.1` / Port `3307`, and `bd list --all --json` shows the shared graph. (Not `bd where` — no `Mode:` line — and not `join-audit.py`, which is bead↔pane.) |
 | Space visible in the portfolio | it appears in `leader-board.py` without any registration step |
 
 `working` is not progress and `idle` is not done. A rejected composition prints **nothing** in the
-pane — the transcript is the only evidence.
+pane.
+
+**How to check the composition, exactly — a whole-file grep does not work and nearly produced a
+false pass on 2026-11-08.** The composed prompt is not greppable text in the session file:
+
+* the session's **system record** carries `content: ""` plus a **`sections`** object —
+  `preamble` (the fleet contract), `addendum` (the space delta), `project_context`, `skills`,
+  `cwd`. Read `sections`; that is where the text actually is.
+* `grep` on the session file returns **echoes** — your own brief quoting the sentence, the
+  lane's own greps of itself, summaries — so it reports hits even when the composition
+  dropped, and it grows the longer the conversation runs.
+* The strongest check needs no reading at all: the **recorded digest**. `pi-modes state
+  <session> --json` → `verdict: match`, or `~/.overlord/tools/reconcile-mode.py --dry-run
+  --only <pane>` → `before: match` / "already recorded the expected digest". A composed
+  space half also shows `project text dropped` **zero** times in `sections`.
+
 
 ## Pitfalls
 
