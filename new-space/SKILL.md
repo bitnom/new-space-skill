@@ -202,7 +202,7 @@ once its lane is a named pi agent:
 |---|---|
 | Lane exists and is named | `herdr agent get <pane>` → `name` is the tab label |
 | Rooms registration | `rooms_who` — **a footer name is not registration** |
-| Role contract reached the model | read the session's system record → its **`sections`** object (`preamble`, `addendum`, `project_context`, `skills`, `cwd`) for the role file's first sentence, or check the recorded digest. **Never grep the session file for the sentence** — see below |
+| Role contract reached the model | **`~/.overlord/tools/verify-mode-composition.sh <pane> "<base-marker>" "<overlay-marker>" [--forbid "<marker>"]`** — use the maintained instrument first; it counts both halves in `sections.preamble`. Or read the `sections` object directly, or check the recorded digest. **Never grep the session file** — see below |
 | Mode composed cleanly | footer `mode:<key>` with **no** `!`; `pi-modes state <session> --json` → `verdict: match` |
 | Beads join | `bd dolt show` reports Database `swarm` / Host `127.0.0.1` / Port `3307`, and `bd list --all --json` shows the shared graph. (Not `bd where` — no `Mode:` line — and not `join-audit.py`, which is bead↔pane.) |
 | Space visible in the portfolio | it appears in `leader-board.py` without any registration step |
@@ -210,7 +210,14 @@ once its lane is a named pi agent:
 `working` is not progress and `idle` is not done. A rejected composition prints **nothing** in the
 pane.
 
-**How to check the composition, exactly — a whole-file grep does not work and nearly produced a
+**How to check the composition, exactly.** **Use the instrument that exists:**
+`~/.overlord/tools/verify-mode-composition.sh <pane> <base-marker> <overlay-marker> [--forbid
+<marker> ...]` counts the base contract and the overlay **inside `sections.preamble`** and
+refuses to be fooled by tool output — it was fixed on 2026-11-02 for exactly the false positive
+described below, and its own header records the same failure (`base=4/overlay=7` with a phantom
+forbidden hit). If you are about to hand-roll this check, stop and run that instead.
+
+A whole-file grep does not work and nearly produced a
 false pass on 2026-11-08.** The composed prompt is not greppable text in the session file:
 
 * the session's **system record** carries `content: ""` plus a **`sections`** object —
@@ -238,6 +245,12 @@ false pass on 2026-11-08.** The composed prompt is not greppable text in the ses
   one implementation that pins the digest and answers both consent dialogs. A digest-pinned
   `--expect` does **not** clear pi-modes' `Use project mode "…"?` gate, and a lane can sit on that
   modal while still reporting drift.
+- **A reload terminates the lane's background children.** `/reload`, `/profile reload`, and
+  `~/.overlord/tools/reconcile-mode.py` end the lane's `bash_bg` jobs and any direct child of the
+  session. Measured 2026-11-08: a pinned re-approval killed a `llama-server` 8m47s into a 256K
+  prefill, and the run produced nothing. Work whose loss costs minutes — anything on real
+  hardware especially — must be launched **detached** (`setsid nohup <cmd> &`) or from a worker
+  pane, and a `bash_bg` handle must never be treated as durable state.
 - **`fleet`** is the retired name of the `leader` profile (FT-36). Anything saying `PI_PROFILE=fleet`
   or `PI_PROFILE=orchestrator` is stale.
 
