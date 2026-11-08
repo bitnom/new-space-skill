@@ -1,5 +1,7 @@
 # new-space — the fleet's space-onboarding procedure
 
+**Public mirror:** <https://github.com/bitnom/new-space-skill>
+
 The `new-space` agent skill: the current, end-to-end procedure for standing up or adding a fleet
 space (a herdr workspace with a leader lane, its own `AGENTS.md`, role mode files, a beads join, and
 derived watcher/board registration).
