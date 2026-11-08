@@ -163,12 +163,20 @@ showing the shared graph — **not** `bd where`, which prints the local path wit
 `bd list --has-metadata-key agent_pane` and compares it against the live herdr agents, i.e.
 bead↔**pane**, not space↔database. Citing it for the database join is a mistake this file made twice.
 
-Known and unresolved: this lane's own space (`/home/bitnom/Documents/Fleet`) has **no `.beads/` of its
-own** — `bd where` there resolves to the ancestor master `~/.beads` and 297 beads are visible, so it
-functions. The consequence, now that the repo-boundary rule above is measured: because Fleet is **not
-a git repo**, it inherits the *master's* `metadata.json` and therefore the master's `project_id` — so
-this space's beads are not separable from the machine-wide set and `project:<w-id>` scoping has nothing
-of its own to scope against. Treat it as an open ops item for the overlord, not a model to copy.
+**Audit the whole fleet's joins with `~/.overlord/tools/space-join-check.py`** — it reproduces the walk
+from each lane's cwd to the nearest `.beads/metadata.json`, **stopping at a repository root**, and
+classifies each space as *own-join* / *ancestor* / *none*, compares every `metadata.json` against the
+majority hash, and flags a populated `.beads/embeddeddolt` (a divergent database, invisible to everyone).
+`--verify` cross-checks `bd where` per cwd. Measured 2026-11-08: **32 spaces, one metadata hash across
+them, 27 own-join / 3 ancestor / 2 none** — and **7 of them, 5 with live lanes, had no tracker at all**
+until they were joined. Do not use `join-audit.py` for this: it is bead↔pane.
+
+A space that has *no* `.beads/` of its own is not automatically broken — if its cwd is **not** a repo,
+it rides the ancestor master and works. But it then inherits the master's `project_id`, so its beads are
+not separable from the machine-wide set and `project:<w-id>` scoping has nothing of its own to scope
+against. `/home/bitnom/Documents/Fleet` was in exactly that state until 2026-11-08 06:29; it is now
+joined in the pinned form like any other space. Prefer joining every space: it costs one command and
+removes a category of confusion.
 
 ## 4. Spawn the leader lane
 
