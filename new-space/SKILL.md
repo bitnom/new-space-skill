@@ -102,9 +102,9 @@ leader-only overlay proven through `pil`. `~/Documents/Fleet/AGENTS.md` is the w
 ## 3. Join the shared beads database — **the recipe is the overlord's, and this is a pointer to it**
 
 The join is a **workspace ops** step, so its single source of truth is
-`overlord-operations` → §"Joining a space to the shared database". Read it there and run that
-invocation; do not take a second-hand version, including this section. In outline it is a thin-client
-`bd init` **inside the space with `BEADS_DIR` forced to it**:
+`overlord-operations` → §"Joining a space to the shared database", and **that section wins over this
+one** if they ever disagree. What follows is the shape of the invocation, so this skill can be read
+end-to-end, plus the reasoning that is *not* in that section:
 
 ```sh
 mkdir -p <space>/.beads
@@ -120,18 +120,32 @@ Equally wrong was the shortcut that replaced it: **copying `~/.beads/metadata.js
 `.beads/` is not a join.** A working space's `.beads/` is a whole generated directory, not one file —
 measured 2026-11-08 across 18 joined spaces:
 
-| Present in a joined `.beads/` | Uniform across spaces? |
+| Present in a joined `.beads/` | Uniform? |
 |---|---|
 | `metadata.json` (217 B) | **yes** — one sha256 across all 18; it carries the shared `dolt_database` + `project_id` |
 | `.gitignore`, `README.md`, `.local_version`, `dolt-server.port` | yes, one hash each |
-| `config.yaml` (~2.8 KB) | **no — differs between spaces**, so it is not copyable boilerplate |
+| `config.yaml` (2872 B) | **yes across all 17 clients** (`6fcb85f4…`). The **master's** differs (`54d411c2…`, whose whole content is `no-git-ops: true`) — so the split is **master vs client, not space vs space** |
 | `dolt/`, `dolt.gate.lock`, `embeddeddolt.gate.lock`, `last-touched` | present; `dolt/` is empty in server mode |
+
+**Correction to an earlier version of this table:** it claimed `config.yaml` "differs between
+spaces". It does not — it is uniform across all 17 clients and only the master's differs. The
+conclusion below survives unchanged, but the row as written failed the first `sha256sum` a careful
+reader would run, which is its own lesson about stating a hash you have not actually compared.
 
 The shared `project_id` (`07b8230e-d7cf-4f22-a338-ef727894a4c1`) is what makes one tracker out of many
 spaces, and it is the fingerprint to compare. `bd` then attaches at runtime by **walking up** from the
 cwd to the nearest `.beads/metadata.json`. Note that **`BEADS_DIR` is not set in a live lane** (checked
 in `/proc`) — it is *how the join is performed*, not how the attach works afterwards. Those two facts
 are easy to conflate and were.
+
+**Discovery appears to stop at a repository root, and that changes what an unjoined space does.**
+Measured 2026-11-08, three data points: `bd where` in `/home/bitnom/Code/lfm3` (a git repo with no
+`.beads/`) returns **`Error: No active beads workspace found`**; in `/home/bitnom/Documents/Fleet` and
+`/home/bitnom` (neither is a repo) it returns the ancestor master `~/.beads`; in
+`/home/bitnom/Code/synomone` (a repo, joined) it returns its own. So a **repo-shaped space that is not
+joined fails loudly instead of silently reading or writing the master** — and for such a space the
+join is not optional, it is the only way it sees the tracker at all. (Consistent with the observation,
+not a code read; the walk-up rule for non-repo directories is the part that is directly observed.)
 
 Then, per space:
 
@@ -144,13 +158,17 @@ Then, per space:
   a closed bead, which is bdi's `stale-pane` anomaly.
 
 Verify per the overlord's section (`bd dolt show` for Database/Host/Port, plus `bd list --all --json`
-showing the shared graph — **not** `bd where`, which prints the local path with no `Mode:` line) and
-audit with `~/.overlord/tools/join-audit.py`.
+showing the shared graph — **not** `bd where`, which prints the local path with no `Mode:` line).
+**Do not cite `~/.overlord/tools/join-audit.py` here** — it audits a different join: it reads
+`bd list --has-metadata-key agent_pane` and compares it against the live herdr agents, i.e.
+bead↔**pane**, not space↔database. Citing it for the database join is a mistake this file made twice.
 
 Known and unresolved: this lane's own space (`/home/bitnom/Documents/Fleet`) has **no `.beads/` of its
 own** — `bd where` there resolves to the ancestor master `~/.beads` and 297 beads are visible, so it
-functions, but it is not joined the documented way. Treat that as an open ops item, not a model to
-copy.
+functions. The consequence, now that the repo-boundary rule above is measured: because Fleet is **not
+a git repo**, it inherits the *master's* `metadata.json` and therefore the master's `project_id` — so
+this space's beads are not separable from the machine-wide set and `project:<w-id>` scoping has nothing
+of its own to scope against. Treat it as an open ops item for the overlord, not a model to copy.
 
 ## 4. Spawn the leader lane
 
@@ -186,7 +204,7 @@ once its lane is a named pi agent:
 | Rooms registration | `rooms_who` — **a footer name is not registration** |
 | Role contract reached the model | grep the lane's **own transcript** for the role file's first sentence. The footer still reads `profile: leader` when the composition was dropped |
 | Mode composed cleanly | footer `mode:<key>` with **no** `!`; `pi-modes state <session> --json` → `verdict: match` |
-| Beads join | `bd where` resolves to the space, and `~/.overlord/tools/join-audit.py` is clean |
+| Beads join | `bd dolt show` reports Database `swarm` / Host `127.0.0.1` / Port `3307`, and `bd list --all --json` shows the shared graph. (Not `bd where` — no `Mode:` line — and not `join-audit.py`, which is bead↔pane.) |
 | Space visible in the portfolio | it appears in `leader-board.py` without any registration step |
 
 `working` is not progress and `idle` is not done. A rejected composition prints **nothing** in the
@@ -196,7 +214,7 @@ pane — the transcript is the only evidence.
 
 - **Creating the lane before its mode files** → the lane runs on the native prompt with no role
   contract, and the footer looks fine.
-- **`bd init`** anywhere near this, for any reason.
+- **A *bare* `bd init`** — one whose target discovery decides, rather than one named with `BEADS_DIR`. That is the hazard §3 describes; `bd init` with `BEADS_DIR=<space>/.beads` is the *join*, not the hazard. An earlier version of this file said "never `bd init`" flatly and was wrong.
 - **Renaming the tab** after the lane starts — the running lane keeps the old name.
 - **Running `pil` inside a lane** — deletes the real lane's registry entry.
 - **Editing a mode file and leaving it unauthorised** — the space half drops until `/mode-reapprove`
