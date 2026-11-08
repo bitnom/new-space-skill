@@ -38,8 +38,11 @@ self-improvement-leader (or self-improvement-leader's own work, if that is who i
 space-by-space hand-written contract is exactly how the template drifts; the whole point of the
 split is that one lane holds the shape.
 
-**Order matters:** §1 and §4 create the lane, §2 and §3 make it correct. Doing §4 before §2 gives
-you a lane whose role contract silently falls back to `native`.
+**Do the phases in this order: §1 tab → §2 scaffolding → §3 beads → §4 launch.** They are numbered in
+the only order that is safe, and two of the inversions fail *silently*: launching before §2 (or before
+the project mode is confirmed) gives you a lane whose role contract falls back to `native` while the
+footer still reads `profile: leader`, and joining beads last leaves a lane whose `bd ready` reads the
+whole fleet instead of its space.
 
 ## 1. Workspace, tab and pane
 
