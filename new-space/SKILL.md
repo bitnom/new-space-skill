@@ -99,28 +99,39 @@ Long form, on disk — read it, don't re-derive it: `pi-fleet-model/PER-SPACE-DE
 §"The recipe, when a space is activated", and `pi-fleet-model/SPACE-ROLE-INSTRUCTIONS.md` for the
 leader-only overlay proven through `pil`. `~/Documents/Fleet/AGENTS.md` is the worked example.
 
-## 3. Join the shared beads database — a file, not a command
+## 3. Join the shared beads database — **the recipe is the overlord's, and this is a pointer to it**
 
-**Never `bd init`.** It targets beads' global state dir, and in a lane whose cwd is under
-`/home/bitnom` the blast radius is the whole fleet.
+The join is a **workspace ops** step, so its single source of truth is
+`overlord-operations` → §"Joining a space to the shared database". Read it there and run that
+invocation; do not take a second-hand version, including this section. In outline it is a thin-client
+`bd init` **inside the space with `BEADS_DIR` forced to it**:
 
-The join is one byte-identical file: copy `~/.beads/metadata.json` to `<space>/.beads/metadata.json`
-
-```json
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "server",
-  "dolt_server_host": "127.0.0.1",
-  "dolt_server_port": 3307,
-  "dolt_database": "swarm",
-  "project_id": "07b8230e-d7cf-4f22-a338-ef727894a4c1"
-}
+```sh
+mkdir -p <space>/.beads
+BEADS_DIR=<space>/.beads bd init --server --server-host 127.0.0.1 --server-port 3307 \
+  --database swarm -p swarm --stealth --skip-agents --non-interactive --role maintainer
 ```
 
-`bd` then attaches by **walking up** from the cwd to the nearest `.beads/metadata.json` carrying that
-shared `dolt_database` + `project_id`. **`BEADS_DIR` is not set in a live lane** (checked in `/proc`);
-the env-var form is migration-plan intent, not runtime behaviour.
+**The hazard is a *bare* `bd init`, not `init` itself — get this distinction right, because an
+earlier version of this skill got it wrong in both directions.** Bare `bd init` runs wherever
+discovery lands: from a cwd whose walk-up reaches the master (`~/.beads`) it aborts, and from `$HOME`
+it *is* the master's directory. `BEADS_DIR=…` removes the ambiguity by naming the target explicitly.
+Equally wrong was the shortcut that replaced it: **copying `~/.beads/metadata.json` into a new
+`.beads/` is not a join.** A working space's `.beads/` is a whole generated directory, not one file —
+measured 2026-11-08 across 18 joined spaces:
+
+| Present in a joined `.beads/` | Uniform across spaces? |
+|---|---|
+| `metadata.json` (217 B) | **yes** — one sha256 across all 18; it carries the shared `dolt_database` + `project_id` |
+| `.gitignore`, `README.md`, `.local_version`, `dolt-server.port` | yes, one hash each |
+| `config.yaml` (~2.8 KB) | **no — differs between spaces**, so it is not copyable boilerplate |
+| `dolt/`, `dolt.gate.lock`, `embeddeddolt.gate.lock`, `last-touched` | present; `dolt/` is empty in server mode |
+
+The shared `project_id` (`07b8230e-d7cf-4f22-a338-ef727894a4c1`) is what makes one tracker out of many
+spaces, and it is the fingerprint to compare. `bd` then attaches at runtime by **walking up** from the
+cwd to the nearest `.beads/metadata.json`. Note that **`BEADS_DIR` is not set in a live lane** (checked
+in `/proc`) — it is *how the join is performed*, not how the attach works afterwards. Those two facts
+are easy to conflate and were.
 
 Then, per space:
 
@@ -132,7 +143,14 @@ Then, per space:
 - a closed bead carries the **evidence in its close reason** — `Closed` alone leaves the pane naming
   a closed bead, which is bdi's `stale-pane` anomaly.
 
-Audit with `~/.overlord/tools/join-audit.py`.
+Verify per the overlord's section (`bd dolt show` for Database/Host/Port, plus `bd list --all --json`
+showing the shared graph — **not** `bd where`, which prints the local path with no `Mode:` line) and
+audit with `~/.overlord/tools/join-audit.py`.
+
+Known and unresolved: this lane's own space (`/home/bitnom/Documents/Fleet`) has **no `.beads/` of its
+own** — `bd where` there resolves to the ancestor master `~/.beads` and 297 beads are visible, so it
+functions, but it is not joined the documented way. Treat that as an open ops item, not a model to
+copy.
 
 ## 4. Spawn the leader lane
 
